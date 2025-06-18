@@ -16,7 +16,7 @@ escalates tickets at risk of breaching via Slack notifications and real-time Web
 - **PostgreSQL**: Stores tickets, status history, and alerts data models.
 - **APScheduler**: Background scheduler that triggers SLA evaluations every minute.
 - **Alert Processor**: Persists alerts, updates escalation levels, sends Slack messages, and broadcasts via WebSocket.
-- **Configuration Watcher**: Hot-reloads `sla_config.yaml` on changes.
+- **Configuration Watcher**: Hot-reloads [`sla_config.yaml`](../sla_config.yaml) on changes.
 - **WebSocket Manager**: Streams alert events to connected front-end clients.
 - **Docker Compose / Terraform**: Container orchestration for local dev and IaC for AWS Fargate + RDS.
 
@@ -63,7 +63,7 @@ escalates tickets at risk of breaching via Slack notifications and real-time Web
     - Broadcasts event over WebSocket to subscribed clients.
 
 4. **Configuration Watcher**
-    - Monitors `sla_config.yaml` with Watchdog and hot-reloads settings without restart.
+    - Monitors [`sla_config.yaml`](../sla_config.yaml) with Watchdog and hot-reloads settings without restart.
 
 5. **Query & Dashboard**
     - `GET /tickets/{id}` returns current SLA status, remaining times, escalation level, history, and alerts.
@@ -106,7 +106,34 @@ escalates tickets at risk of breaching via Slack notifications and real-time Web
 
 ---
 
-## 7. Future Work
+## 7. Testing & Quality Assurance
+
+- **Automated Tests**: Comprehensive unit and integration tests using pytest.
+- **Continuous Integration**: GitHub Actions workflow runs tests and uploads coverage to Codecov on every push.
+- **Coverage**: Codecov badge in the main README reflects test coverage.
+- **Mocking**: All external dependencies (Slack, WebSocket) are mocked in tests for reliability.
+
+---
+
+## 8. API Versioning & Extensibility
+
+- **Versioning**: The API is currently unversioned, but can be extended with `/v1/`, `/v2/`, etc. in the future.
+- **Extensibility**: Modular design allows for easy addition of new endpoints, notification channels, or storage backends.
+
+---
+
+## 9. Glossary
+
+- **SLA**: Service Level Agreement, a contractually defined response/resolution time for support tickets.
+- **Alert**: A notification that a ticket is approaching or has breached its SLA.
+- **Escalation**: Increasing the priority or visibility of a ticket due to SLA risk or breach.
+- **Idempotency**: Ensuring repeated ticket events with the same `id` and `updated_at` do not create duplicates.
+- **Watchdog**: File system observer that hot-reloads configuration on changes.
+- **WebSocket**: Real-time, bidirectional communication channel for streaming alerts to clients.
+
+---
+
+## 10. Future Work
 
 - **High Availability**: run multiple scheduler instances with leader election (Redis lock).
 - **Alert Deduplication**: suppress duplicate alerts within a configurable window.
@@ -114,3 +141,9 @@ escalates tickets at risk of breaching via Slack notifications and real-time Web
 - **Rate Limiting & Throttling**: protect API and Slack from overload.
 - **Enhanced Dashboard**: real-time React UI consuming WebSocket stream.
 - **Deployment Automation**: CI/CD pipelines with GitHub Actions and Terraform Cloud.
+
+---
+
+## License
+
+This project is licensed under the MIT License.
