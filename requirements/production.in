@@ -1,0 +1,12 @@
+apscheduler
+fastapi
+loguru
+prettyconf
+psycopg[binary]
+pydantic
+pyyaml
+requests
+sqlalchemy
+unipath
+uvicorn[standard]
+watchdog
