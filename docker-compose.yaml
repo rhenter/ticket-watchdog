@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: sla_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  mock-slack:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./mock_slack:/app
+    command: python -m http.server 5000
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+      - mock-slack
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://user:pass@db:5432/sla_db
+      SLACK_WEBHOOK_URL: http://mock-slack:5000
+      SLA_CONFIG_PATH: /app/sla_config.yaml
+      SCHEDULER_INTERVAL_MINUTES: 1
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    volumes:
+      - .:/app
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+      - mock-slack
+    environment:
+      # tests use the in-memory SQLite by default (see conftest.py)
+      SLACK_WEBHOOK_URL: http://mock-slack:5000
+    volumes:
+      - .:/app
+    command: pytest --maxfail=1 --disable-warnings -q
+
+volumes:
+  db_data:
