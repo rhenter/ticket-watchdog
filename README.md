@@ -1,5 +1,8 @@
 # Ticket Watchdog
 
+[![CI](https://github.com/rhenter/ticket-watchdog/actions/workflows/ci.yml/badge.svg)](https://github.com/rhenter/ticket-watchdog/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rhenter/ticket-watchdog/branch/main/graph/badge.svg)](https://codecov.io/gh/rhenter/ticket-watchdog)
+
 Ticket Watchdog is a Slack- and WebSocket-enabled SLA monitoring service for customer-support tickets. It evaluates SLA response and resolution clocks, sends alerts or breaches to Slack, and streams events to connected clients in real time.
 
 ## Features
@@ -85,7 +88,14 @@ Usage:
 ```bash
 cd infra/terraform
 terraform init
-terraform apply   -var="aws_region=us-east-1"   -var="docker_image=your-docker-image:latest"   -var="db_user=user"   -var="db_password=pass"   -var="db_name=sla_db"   -var="slack_webhook_url=https://hooks.slack.com/..."   -var='subnets=["subnet-..."]'   -var='security_groups=["sg-..."]'
+terraform apply -var="aws_region=us-east-1" \
+  -var="docker_image=your-docker-image:latest" \
+  -var="db_user=user" \
+  -var="db_password=pass" \
+  -var="db_name=sla_db" \
+  -var="slack_webhook_url=https://hooks.slack.com/..." \
+  -var='subnets=["subnet-..."]' \
+  -var='security_groups=["sg-..."]'
 ```
 
 ## Design Documentation
