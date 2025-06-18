@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
@@ -27,8 +27,8 @@ class Ticket(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     priority: Mapped[str] = mapped_column(String, nullable=False)
     customer_tier: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow,
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc),
                                                  nullable=False)
     escalation_level: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
@@ -47,7 +47,7 @@ class TicketStatusHistory(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ticket_id: Mapped[str] = mapped_column(String, ForeignKey("tickets.id"), nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     ticket: Mapped[Ticket] = relationship("Ticket", back_populates="status_history")
 
@@ -62,7 +62,7 @@ class Alert(Base):
     ticket_id: Mapped[str] = mapped_column(String, ForeignKey("tickets.id"), nullable=False)
     sla_type: Mapped[str] = mapped_column(String, nullable=False)  # e.g. "response" or "resolution"
     state: Mapped[SLAState] = mapped_column(Enum(SLAState), default=SLAState.ALERT, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     details: Mapped[dict] = mapped_column(JSON, default={})
 
     ticket: Mapped[Ticket] = relationship("Ticket", back_populates="alerts")

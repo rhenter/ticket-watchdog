@@ -59,8 +59,17 @@ def update_ticket(db: Session, ticket_event: schemas.TicketEvent) -> models.Tick
     if existing is None:
         return create_ticket(db, ticket_event)
 
+    # Ensure timezone-aware comparison
+    event_updated_at = ticket_event.updated_at
+    if event_updated_at.tzinfo is None:
+        event_updated_at = event_updated_at.replace(tzinfo=timezone.utc)
+    
+    existing_updated_at = existing.updated_at
+    if existing_updated_at.tzinfo is None:
+        existing_updated_at = existing_updated_at.replace(tzinfo=timezone.utc)
+
     # Check event freshness (idempotency)
-    if ticket_event.updated_at <= existing.updated_at:
+    if event_updated_at <= existing_updated_at:
         return existing
 
     # Update fields
