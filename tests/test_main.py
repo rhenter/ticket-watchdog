@@ -1,11 +1,11 @@
 import json
 from datetime import datetime, timezone
 import os
-import requests
 import time
 
 import pytest
 from fastapi.testclient import TestClient
+import httpx
 
 from src import schemas
 from src.main import app, get_db
@@ -181,7 +181,7 @@ def test_slack_alert_integration(monkeypatch):
     # Wait for the alert to be processed and sent
     time.sleep(2)
     # Check the mock Slack for received messages
-    slack_resp = requests.get("http://mock-slack:5000/received")
+    slack_resp = httpx.get("http://mock-slack:5000/received")
     assert slack_resp.status_code == 200
     data = slack_resp.json()
     assert any("slack-integration" in str(msg) for msg in data), "Slack alert not found in mock Slack"
