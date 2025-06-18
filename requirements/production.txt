@@ -8,26 +8,34 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.9.0
     # via
+    #   -r requirements/production.in
+    #   httpx
     #   starlette
     #   watchfiles
 apscheduler==3.11.0
     # via -r requirements/production.in
 certifi==2025.6.15
-    # via requests
-charset-normalizer==3.4.2
-    # via requests
+    # via
+    #   httpcore
+    #   httpx
 click==8.2.1
     # via uvicorn
 fastapi==0.115.13
     # via -r requirements/production.in
 h11==0.16.0
-    # via uvicorn
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
 httptools==0.6.4
     # via uvicorn
+httpx==0.28.1
+    # via -r requirements/production.in
 idna==3.10
     # via
     #   anyio
-    #   requests
+    #   httpx
 loguru==0.7.3
     # via -r requirements/production.in
 prettyconf==2.3.0
@@ -48,8 +56,6 @@ pyyaml==6.0.2
     # via
     #   -r requirements/production.in
     #   uvicorn
-requests==2.32.4
-    # via -r requirements/production.in
 sniffio==1.3.1
     # via anyio
 sqlalchemy==2.0.41
@@ -71,8 +77,6 @@ tzlocal==5.3.1
     # via apscheduler
 unipath==1.1
     # via -r requirements/production.in
-urllib3==2.4.0
-    # via requests
 uvicorn[standard]==0.34.3
     # via -r requirements/production.in
 uvloop==0.21.0

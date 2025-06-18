@@ -1,11 +1,12 @@
+anyio>=3.0.0
 apscheduler
 fastapi
 loguru
+httpx
 prettyconf
 psycopg[binary]
 pydantic
 pyyaml
-requests
 sqlalchemy
 unipath
 uvicorn[standard]
