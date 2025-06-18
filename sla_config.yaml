@@ -1,0 +1,11 @@
+tiers:
+  gold:
+    high:
+      response: 30
+      resolution: 180
+    medium:
+      response: 60
+      resolution: 240
+    low:
+      response: 120
+      resolution: 360
