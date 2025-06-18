@@ -1,15 +1,16 @@
-import asyncio
 import logging
 from datetime import timezone
 from typing import Dict, Any
 
-import requests
+import httpx
 
 from src import crud, models, settings
 from src.database import SessionLocal
 from src.ws import manager
 
 logger = logging.getLogger(__name__)
+
+db = SessionLocal()
 
 
 def send_slack_notification(ticket: models.Ticket, alert: models.Alert) -> None:
@@ -73,7 +74,7 @@ def send_slack_notification(ticket: models.Ticket, alert: models.Alert) -> None:
     }
 
     try:
-        response = requests.post(
+        response = httpx.post(
             settings.SLACK_WEBHOOK_URL,
             json=payload,
             timeout=settings.SLACK_TIMEOUT,
@@ -85,19 +86,29 @@ def send_slack_notification(ticket: models.Ticket, alert: models.Alert) -> None:
 
 
 def process_alert(
-        ticket_id: str,
-        sla_type: str,
-        state: models.SLAState,
-        details: Dict[str, Any]
+    ticket_id: str,
+    sla_type: str,
+    state: models.SLAState,
+    details: Dict[str, Any]
 ) -> None:
     """
-    Persist a new alert, increment escalation level, notify Slack,
-    and broadcast over WebSocket.
+    Persist a new alert, bump escalation, notify Slack,
+    and broadcast synchronously over WebSocket.
     """
-    db = SessionLocal()
     try:
         alert = crud.create_alert(db, ticket_id, sla_type, state, details)
         ticket = crud.get_ticket(db, ticket_id)
+
+        # Structured business logging
+        logger.info({
+            "correlation_id": None,  # Can be propagated via context if available
+            "ticket_id": ticket_id,
+            "operation": "alert",
+            "sla_type": sla_type,
+            "state": state.value,
+            "escalation_level": ticket.escalation_level,
+            "details": details
+        })
 
         send_slack_notification(ticket, alert)
 
@@ -108,8 +119,9 @@ def process_alert(
             "details": alert.details,
             "timestamp": alert.created_at.astimezone(timezone.utc).isoformat(),
         }
-        # schedule broadcast without blocking
-        asyncio.create_task(manager.broadcast(message))
+
+        # synchronous broadcast
+        manager.broadcast_sync(message)
 
     except Exception:
         db.rollback()

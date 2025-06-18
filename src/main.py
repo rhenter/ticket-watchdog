@@ -1,38 +1,48 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import List, Optional, Union
 
-from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from starlette.middleware import Middleware
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, Body
 
 from src import crud, schemas, models
 from src.config import start_config_watcher
 from src.database import SessionLocal, engine, Base
 from src.logging_middleware import StructuredLoggingMiddleware
-from src.scheduler import start_scheduler
-from src.ws import manager as ws_manager
+from src.scheduler import start_scheduler, evaluate_slas_for_ticket
+from src.ws import manager
 
-# Create database tables
+for logger_name in [
+    "uvicorn.access",
+    "uvicorn.error",
+    "fastapi",
+    "httpx",
+    "urllib3",
+    "starlette",
+]:
+    logging.getLogger(logger_name).setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
+
+# Create tables
 Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize configuration watcher and scheduler on startup
+    # Start the file‐watcher for sla_config.yaml
     start_config_watcher()
+    # Start the background SLA evaluator
     start_scheduler()
     yield
-    # Any shutdown cleanup would go here
+    # (no teardown needed at the moment)
 
-middleware = [
-    Middleware(StructuredLoggingMiddleware)
-]
+
 app = FastAPI(
     title="Ticket Watchdog",
-    lifespan=lifespan,
-    middleware=middleware,
+    lifespan=lifespan
 )
-
-
+app.add_middleware(StructuredLoggingMiddleware)
 
 
 def get_db():
@@ -44,62 +54,65 @@ def get_db():
 
 
 @app.post("/tickets", response_model=List[schemas.TicketSchema])
-def ingest_ticket_batch(
-        events: List[schemas.TicketEvent],
-        db=Depends(get_db)
+async def ingest_ticket_events(
+    events: Union[schemas.TicketEvent, List[schemas.TicketEvent]] = Body(...),
+    db = Depends(get_db)
 ):
-    """
-    Ingest or update a batch of ticket events.
-    """
+    # Normalize to list
+    if isinstance(events, dict):
+        events = [schemas.TicketEvent(**events)]
+    elif isinstance(events, schemas.TicketEvent):
+        events = [events]
     tickets = []
-    for event in events:
-        ticket = crud.update_ticket(db, event)
+    for e in events:
+        ticket = crud.update_ticket(db, e)
         tickets.append(ticket)
-    return tickets
+        evaluate_slas_for_ticket(ticket.id)
+    return [schemas.TicketSchema.model_validate(t) for t in tickets]
 
 
 @app.get("/tickets/{ticket_id}", response_model=schemas.TicketSchema)
-def get_ticket(ticket_id: str, db=Depends(get_db)):
+async def get_ticket(ticket_id: str, db=Depends(get_db)):
     ticket = crud.get_ticket(db, ticket_id)
     if not ticket:
-        raise HTTPException(404, "Ticket not found")
-    return ticket
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return schemas.TicketSchema.model_validate(ticket)
 
 
 @app.get("/dashboard", response_model=List[schemas.TicketSchema])
-def list_tickets(
-    state: Optional[schemas.SLAState] = Query(
-        None,
-        description="Filter tickets by SLA state (ok, alert, breach)"
-    ),
-    offset: int = Query(0, ge=0, alias="offset"),
-    limit: int = Query(100, ge=1, le=1000, alias="limit"),
-    db = Depends(get_db)
+async def list_tickets(
+        state: Optional[schemas.SLAState] = Query(None),
+        offset: int = Query(0, ge=0),
+        limit: int = Query(100, ge=1, le=1000),
+        db=Depends(get_db)
 ):
-    """
-    List tickets with pagination using offset and limit.
-    If `state` is provided, only tickets having at least one Alert
-    with that SLAState will be returned.
-    """
     query = db.query(models.Ticket)
 
-    if state:
-        query = (
-            query
-            .join(models.Alert)
-            .filter(models.Alert.state == state)
-            .distinct(models.Ticket.id)
+    if state is not None:
+        # Convert Pydantic enum to SQLAlchemy enum
+        model_state = models.SLAState(state.value)
+        # If filtering for ALERT, include BREACH as well
+        valid_states = [model_state]
+        if model_state == models.SLAState.ALERT:
+            valid_states.append(models.SLAState.BREACH)
+
+        subq = (
+            db.query(models.Alert.ticket_id)
+            .filter(models.Alert.state.in_(valid_states))
         )
+        query = query.filter(models.Ticket.id.in_(subq))
 
     tickets = query.offset(offset).limit(limit).all()
-    return tickets
+    return [schemas.TicketSchema.model_validate(t) for t in tickets]
+
 
 
 @app.websocket("/ws/alerts")
 async def alerts_ws(websocket: WebSocket):
-    await ws_manager.connect(websocket)
+    await websocket.accept()
+    manager.connections.append(websocket)
     try:
-        while True:
-            await websocket.receive_text()
+        # Hold the connection open indefinitely
+        await asyncio.Future()
     except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
+        manager.disconnect(websocket)

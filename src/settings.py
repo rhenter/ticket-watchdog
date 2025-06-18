@@ -1,7 +1,7 @@
 from prettyconf import config
 from unipath import Path
 
-PROJECT_DIR = Path(__file__)
+PROJECT_DIR = Path(__file__).ancestor(2)
 
 # Logging
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")

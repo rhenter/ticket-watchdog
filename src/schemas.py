@@ -1,8 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Dict, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class SLAState(str, Enum):
@@ -19,6 +19,18 @@ class TicketEvent(BaseModel):
     status: str
     customer_tier: str
 
+    def dict(self, *args, **kwargs) -> Dict[str, Any]:
+        """
+        Return a dict where datetime fields are ISO‐formatted,
+        so TestClient.json(...) can serialize them.
+        """
+        data = super().dict(*args, **kwargs)
+        if isinstance(data.get("created_at"), datetime):
+            data["created_at"] = data["created_at"].isoformat()
+        if isinstance(data.get("updated_at"), datetime):
+            data["updated_at"] = data["updated_at"].isoformat()
+        return data
+
     class Config:
         schema_extra = {
             "example": {
@@ -32,28 +44,11 @@ class TicketEvent(BaseModel):
         }
 
 
-class TicketBase(BaseModel):
-    id: str
-    priority: str
-    customer_tier: str
-    created_at: datetime
-    updated_at: datetime
-    escalation_level: int
-
-    class Config:
-        orm_mode = True
-
-
-class TicketCreate(TicketBase):
-    pass
-
-
 class StatusHistorySchema(BaseModel):
     status: str
     timestamp: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AlertSchema(BaseModel):
@@ -62,8 +57,22 @@ class AlertSchema(BaseModel):
     created_at: datetime
     details: dict
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketBase(BaseModel):
+    id: str
+    priority: str
+    customer_tier: str
+    created_at: datetime
+    updated_at: datetime
+    escalation_level: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TicketCreate(TicketBase):
+    pass
 
 
 class TicketSchema(TicketBase):
