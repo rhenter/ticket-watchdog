@@ -139,7 +139,7 @@ def test_websocket_broadcast(monkeypatch):
         status="open",
         customer_tier="gold"
     )
-    # Simula alertas e patchs necessários
+    # Patch alert and SLA logic
     monkeypatch.setattr("src.main.evaluate_slas_for_ticket", lambda ticket_id: None)
     monkeypatch.setattr("src.crud.create_alert", lambda db, tid, sla_type, state, details: None)
     # Connect to WebSocket
@@ -148,9 +148,10 @@ def test_websocket_broadcast(monkeypatch):
         client.post("/tickets", json=[event.dict()])
         monkeypatch.setattr("src.config.get_sla_config",
                             lambda: {"gold": {"high": {"response": 1, "resolution": 1000}}})
-        # Força o broadcast manualmente
+        # Force broadcast manually
         from src.ws import manager
         manager.broadcast_sync({"ticket_id": "ws1", "sla_type": "response", "state": "alert", "details": {}, "timestamp": datetime.now(timezone.utc).isoformat()})
+        # Explicit timeout to avoid CI hangs
         message = ws.receive_json(timeout=5)
         assert message["ticket_id"] == "ws1"
 
@@ -163,9 +164,7 @@ def test_slack_alert_integration(monkeypatch):
     """
     Integration test: ensure a Slack alert is sent to the mock Slack endpoint when an alert is triggered.
     """
-    # Set the webhook to the mock slack endpoint
     monkeypatch.setenv("SLACK_WEBHOOK_URL", "http://mock-slack:5000/webhook")
-    # Prepare a ticket that will immediately trigger an alert
     now = datetime.now(timezone.utc)
     event = schemas.TicketEvent(
         id="slack-integration",
@@ -175,13 +174,12 @@ def test_slack_alert_integration(monkeypatch):
         status="open",
         customer_tier="gold"
     )
-    # Ingest the ticket
     response = client.post("/tickets", json=[event.dict()])
     assert response.status_code == 200
-    # Wait for the alert to be processed and sent
+    # Wait briefly for the alert to be processed and sent
     time.sleep(2)
-    # Check the mock Slack for received messages
-    slack_resp = httpx.get("http://mock-slack:5000/received")
+    # Use explicit timeout for HTTP call to avoid CI hangs
+    slack_resp = httpx.get("http://mock-slack:5000/received", timeout=5)
     assert slack_resp.status_code == 200
     data = slack_resp.json()
     assert any("slack-integration" in str(msg) for msg in data), "Slack alert not found in mock Slack"
