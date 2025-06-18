@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-import requests
+import httpx
 
 from src.settings import SLACK_WEBHOOK_URL, SLACK_TIMEOUT
 
@@ -31,7 +31,7 @@ def send_slack_notification(
         payload["blocks"] = blocks
 
     try:
-        response = requests.post(
+        response = httpx.post(
             SLACK_WEBHOOK_URL,
             json=payload,
             timeout=SLACK_TIMEOUT,
