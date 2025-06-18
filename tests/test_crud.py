@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src import crud, schemas, models
 
@@ -7,8 +7,8 @@ def test_create_and_get_ticket(db_session):
     event = schemas.TicketEvent(
         id="test-id",
         priority="high",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         status="open",
         customer_tier="gold"
     )
@@ -24,7 +24,7 @@ def test_create_and_get_ticket(db_session):
 
 
 def test_update_ticket_idempotency(db_session):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     event_old = schemas.TicketEvent(
         id="idempotent",
         priority="low",
@@ -66,8 +66,8 @@ def test_create_alert_increments_escalation(db_session):
         id="alert-test",
         priority="high",
         customer_tier="gold",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
     db_session.add(ticket)
     db_session.commit()

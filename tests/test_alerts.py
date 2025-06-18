@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -34,8 +34,8 @@ def test_process_alert_creates_and_notifies(monkeypatch, db_session):
         id="palert",
         priority="high",
         customer_tier="gold",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         escalation_level=0
     )
     db_session.add(ticket)

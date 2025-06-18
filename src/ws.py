@@ -13,7 +13,8 @@ class AlertWebSocketManager:
         self.connections.append(ws)
 
     def disconnect(self, ws: WebSocket):
-        self.connections.remove(ws)
+        if ws in self.connections:
+            self.connections.remove(ws)
 
     async def broadcast(self, message: dict):
         for conn in self.connections:
@@ -24,7 +25,11 @@ class AlertWebSocketManager:
         Thread-safe enqueue of the async broadcast coroutine
         on the running event loop—no circular imports required.
         """
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         # Schedule the broadcast coroutine to run on the loop
         loop.call_soon_threadsafe(asyncio.create_task, self.broadcast(message))
 

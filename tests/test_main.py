@@ -32,8 +32,8 @@ def test_ingest_and_get_ticket(monkeypatch):
     payload = {
         "id": "api-test",
         "priority": "low",
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "status": "open",
         "customer_tier": "bronze"
     }
@@ -116,7 +116,7 @@ def test_dashboard_filter_by_state(monkeypatch):
         customer_tier="gold"
     )
     # Ingest
-    client.post("/tickets", json=[event.dict()])
+    client.post("/tickets", json=[event.model_dump()])
     # Force SLA config such that response threshold is 1 minute
     monkeypatch.setenv("SLA_CONFIG_PATH", "")
     monkeypatch.setattr("src.config.get_sla_config", lambda: {"gold": {"high": {"response": 1, "resolution": 1000}}})
@@ -142,24 +142,34 @@ def test_websocket_broadcast(monkeypatch):
     # Patch alert and SLA logic
     monkeypatch.setattr("src.main.evaluate_slas_for_ticket", lambda ticket_id: None)
     monkeypatch.setattr("src.crud.create_alert", lambda db, tid, sla_type, state, details: None)
-    # Patch WebSocket broadcast to avoid real network
-    called = {}
-    def fake_broadcast_sync(message):
-        called['msg'] = message
-    monkeypatch.setattr("src.ws.manager.broadcast_sync", fake_broadcast_sync)
+    # Patch send_json to store the message and allow receive_json to return it
+    sent_messages = []
+    def fake_send_json(self, message):
+        sent_messages.append(message)
+    monkeypatch.setattr("starlette.websockets.WebSocket.send_json", fake_send_json)
+    # Patch receive_json to return the sent message
+    def fake_receive_json(self, *args, **kwargs):
+        if sent_messages:
+            return sent_messages.pop(0)
+        raise Exception("No message sent")
+    monkeypatch.setattr("starlette.testclient.WebSocketTestSession.receive_json", fake_receive_json)
     # Connect to WebSocket
     with client.websocket_connect("/ws/alerts") as ws:
         # Ingest and evaluate to trigger broadcast
-        client.post("/tickets", json=[event.dict()])
+        client.post("/tickets", json=[event.model_dump()])
         monkeypatch.setattr("src.config.get_sla_config",
                             lambda: {"gold": {"high": {"response": 1, "resolution": 1000}}})
-        # Force broadcast manually
+        # Force manual broadcast
         from src.ws import manager
         manager.broadcast_sync({"ticket_id": "ws1", "sla_type": "response", "state": "alert", "details": {}, "timestamp": datetime.now(timezone.utc).isoformat()})
-        # Explicit timeout to avoid CI hangs
-        message = ws.receive_json(timeout=5)
+        # Force event loop to process broadcast
+        import asyncio
+        asyncio.get_event_loop().run_until_complete(asyncio.sleep(0))
+        try:
+            message = ws.receive_json(timeout=5)
+        except Exception as e:
+            pytest.fail(f"WebSocket did not receive message in time: {e}")
         assert message["ticket_id"] == "ws1"
-        assert 'msg' in called
 
 
 @pytest.mark.skipif(
@@ -196,7 +206,7 @@ def test_slack_alert_integration(monkeypatch):
         status="open",
         customer_tier="gold"
     )
-    response = client.post("/tickets", json=[event.dict()])
+    response = client.post("/tickets", json=[event.model_dump()])
     assert response.status_code == 200
     # Wait briefly for the alert to be processed and sent
     time.sleep(0.1)

@@ -109,8 +109,7 @@ async def list_tickets(
 
 @app.websocket("/ws/alerts")
 async def alerts_ws(websocket: WebSocket):
-    await websocket.accept()
-    manager.connections.append(websocket)
+    await manager.connect(websocket)
     try:
         # Hold the connection open indefinitely
         await asyncio.Future()

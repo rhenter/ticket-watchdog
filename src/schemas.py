@@ -19,20 +19,21 @@ class TicketEvent(BaseModel):
     status: str
     customer_tier: str
 
-    def dict(self, *args, **kwargs) -> Dict[str, Any]:
+    def model_dump(self, *args, **kwargs) -> Dict[str, Any]:
         """
         Return a dict where datetime fields are ISO‐formatted,
         so TestClient.json(...) can serialize them.
         """
-        data = super().dict(*args, **kwargs)
+        data = super().model_dump(*args, **kwargs)
         if isinstance(data.get("created_at"), datetime):
             data["created_at"] = data["created_at"].isoformat()
         if isinstance(data.get("updated_at"), datetime):
             data["updated_at"] = data["updated_at"].isoformat()
         return data
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
                 "priority": "high",
@@ -42,6 +43,7 @@ class TicketEvent(BaseModel):
                 "customer_tier": "gold"
             }
         }
+    )
 
 
 class StatusHistorySchema(BaseModel):

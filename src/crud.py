@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import logging
 
@@ -32,7 +32,7 @@ def create_ticket(db: Session, ticket_event: schemas.TicketEvent) -> models.Tick
     status_history = models.TicketStatusHistory(
         ticket_id=ticket.id,
         status=ticket_event.status,
-        timestamp=ticket_event.updated_at or datetime.utcnow()
+        timestamp=ticket_event.updated_at or datetime.now(timezone.utc)
     )
     db.add(status_history)
     db.commit()
