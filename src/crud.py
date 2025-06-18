@@ -1,9 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
+import logging
 
 from sqlalchemy.orm import Session
 
 from src import models, schemas
+
+logger = logging.getLogger(__name__)
 
 
 def get_ticket(db: Session, ticket_id: str) -> Optional[models.Ticket]:
@@ -34,6 +37,16 @@ def create_ticket(db: Session, ticket_event: schemas.TicketEvent) -> models.Tick
     db.add(status_history)
     db.commit()
     db.refresh(ticket)
+    # Structured logging for ingestion
+    logger.info({
+        "correlation_id": None,
+        "ticket_id": ticket.id,
+        "operation": "ingest",
+        "priority": ticket.priority,
+        "customer_tier": ticket.customer_tier,
+        "created_at": str(ticket.created_at),
+        "updated_at": str(ticket.updated_at)
+    })
     return ticket
 
 
@@ -66,6 +79,15 @@ def update_ticket(db: Session, ticket_event: schemas.TicketEvent) -> models.Tick
 
     db.commit()
     db.refresh(existing)
+    # Structured logging for update
+    logger.info({
+        "correlation_id": None,
+        "ticket_id": existing.id,
+        "operation": "update",
+        "priority": existing.priority,
+        "customer_tier": existing.customer_tier,
+        "updated_at": str(existing.updated_at)
+    })
     return existing
 
 
@@ -84,22 +106,26 @@ def create_alert(
         details: dict
 ) -> models.Alert:
     """
-    Create an alert for a ticket and increment its escalation level.
+    Persist a new Alert row and bump the ticket's escalation_level by 1.
     """
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise ValueError(f"Ticket {ticket_id} not found")
+
+    # create alert
     alert = models.Alert(
         ticket_id=ticket_id,
         sla_type=sla_type,
         state=state,
-        created_at=datetime.utcnow(),
         details=details
     )
     db.add(alert)
 
-    # Update ticket's escalation level
-    ticket = get_ticket(db, ticket_id)
+    # bump escalation level
     ticket.escalation_level += 1
-    db.add(ticket)
 
+    # commit both the new alert and the ticket update
     db.commit()
+    # refresh so alert.created_at, alert.id, etc. are populated
     db.refresh(alert)
     return alert
