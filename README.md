@@ -2,8 +2,20 @@
 
 [![CI](https://github.com/rhenter/ticket-watchdog/actions/workflows/ci.yml/badge.svg)](https://github.com/rhenter/ticket-watchdog/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rhenter/ticket-watchdog/branch/main/graph/badge.svg)](https://codecov.io/gh/rhenter/ticket-watchdog)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 
-Ticket Watchdog is a Slack- and WebSocket-enabled SLA monitoring service for customer-support tickets. It evaluates SLA response and resolution clocks, sends alerts or breaches to Slack, and streams events to connected clients in real time.
+## Table of Contents
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Running Tests](#running-tests)
+- [API Usage](#api-usage)
+- [Cloud Deployment](#cloud-deployment)
+- [Design Documentation](#design-documentation)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
 ## Features
 
@@ -66,7 +78,7 @@ make test
 
 ## Configuration
 
-All settings are managed by environment variables and be edited in the .env file:
+All settings are managed by environment variables and can be edited in the .env file:
 
 - `DATABASE_URL`
 - `SLACK_WEBHOOK_URL`
@@ -74,6 +86,42 @@ All settings are managed by environment variables and be edited in the .env file
 - `SCHEDULER_INTERVAL_MINUTES`
 - `API_HOST`
 - `API_PORT`
+
+## API Usage
+
+### Ingest Ticket(s)
+```bash
+curl -X POST http://localhost:8000/tickets \
+  -H "Content-Type: application/json" \
+  -d '[{"id":"1","priority":"high","created_at":"2025-06-18T12:00:00Z","updated_at":"2025-06-18T12:00:00Z","status":"open","customer_tier":"gold"}]'
+```
+**Response:**
+```json
+[
+  {
+    "id": "1",
+    "priority": "high",
+    "created_at": "2025-06-18T12:00:00Z",
+    "updated_at": "2025-06-18T12:00:00Z",
+    "status": "open",
+    "customer_tier": "gold",
+    "escalation_level": 0
+  }
+]
+```
+
+### Get Ticket by ID
+```bash
+curl http://localhost:8000/tickets/1
+```
+
+### Get Dashboard (all tickets)
+```bash
+curl http://localhost:8000/dashboard
+```
+
+### WebSocket Alerts
+Connect to `ws://localhost:8000/ws/alerts` to receive real-time alert events.
 
 ## Cloud Deployment
 
@@ -88,18 +136,20 @@ Usage:
 ```bash
 cd infra/terraform
 terraform init
-terraform apply -var="aws_region=us-east-1" \
-  -var="docker_image=your-docker-image:latest" \
-  -var="db_user=user" \
-  -var="db_password=pass" \
-  -var="db_name=sla_db" \
-  -var="slack_webhook_url=https://hooks.slack.com/..." \
-  -var='subnets=["subnet-..."]' \
-  -var='security_groups=["sg-..."]'
+terraform apply -var-file=terraform.tfvars
 ```
 
 ## Design Documentation
 
 See [design/architecture.md](design/architecture.md) for architecture details, trade-offs, and future work.
+
+## Contributing
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change. Please make sure to update tests as appropriate and follow the code style guidelines.
+
+## License
+MIT © Rafael Henter
+
+## Contact
+For questions or support, open an issue or email [rafael.henter@gmail.com](mailto:rafael.henter@gmail.com).
 
 ---
