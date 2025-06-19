@@ -1,0 +1,9 @@
+[run]
+source = src
+
+[report]
+omit =
+    */tests/*
+    */.venv/*
+    */.virtualenvs/*
+    */__init__.py 
