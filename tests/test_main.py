@@ -214,3 +214,30 @@ def test_slack_alert_integration(monkeypatch):
     assert slack_resp.status_code == 200
     data = slack_resp.json()
     assert any("slack-integration" in str(msg) for msg in data), "Slack alert not found in mock Slack"
+
+
+def test_ws_manager_disconnect_not_connected():
+    from src.ws import manager
+    class DummyWS:
+        pass
+    # Should not raise
+    manager.disconnect(DummyWS())
+
+
+def test_ws_manager_broadcast_no_connections():
+    from src.ws import manager
+    # Patch connections to empty list to ensure no error
+    manager.connections = []
+    import asyncio
+    asyncio.get_event_loop().run_until_complete(manager.broadcast({"msg": "test"}))
+
+
+def test_model_repr():
+    from src import models
+    from datetime import datetime, timezone
+    t = models.Ticket(id="r1", priority="high", customer_tier="gold", created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc))
+    s = models.TicketStatusHistory(id=1, ticket_id="r1", status="open", timestamp=datetime.now(timezone.utc))
+    a = models.Alert(id=1, ticket_id="r1", sla_type="response", state=models.SLAState.ALERT, created_at=datetime.now(timezone.utc), details={})
+    assert "Ticket" in repr(t)
+    assert "StatusHistory" in repr(s)
+    assert "Alert" in repr(a)
