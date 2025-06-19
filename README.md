@@ -150,6 +150,6 @@ Pull requests are welcome! For major changes, please open an issue first to disc
 MIT © Rafael Henter
 
 ## Contact
-For questions or support, open an issue or email [rafael.henter@gmail.com](mailto:rafael.henter@gmail.com).
+For questions or support, open an issue or email [rafael@henter.com.br](mailto:rafael@henter.com.br).
 
 ---
